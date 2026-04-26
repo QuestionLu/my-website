@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Pink Hello World</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000000; /* 極致黑背景 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Inter', 'Arial Black', sans-serif;
+            cursor: crosshair;
+        }
+
+        #bgCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 150px; /* 給予發光充足的緩衝空間 */
+            pointer-events: none;
+        }
+
+        .main-title {
+            color: #ffffff;
+            font-size: 10vw; /* 配合單行顯示調整大小 */
+            font-weight: 800; /* 比之前稍微細一點點 */
+            margin: 0;
+            line-height: 1.2;
+            text-transform: uppercase;
+            letter-spacing: 0.05em; 
+            white-space: nowrap; /* 關鍵：強制不換行 */
+            
+            /* 霓虹桃粉色發光 */
+            text-shadow: 
+                0 0 10px rgba(255, 0, 160, 1),
+                0 0 30px rgba(255, 0, 160, 0.8),
+                0 0 60px rgba(255, 0, 160, 0.5),
+                0 0 120px rgba(255, 0, 160, 0.3);
+            
+            animation: pinkPulse 3s infinite alternate ease-in-out;
+        }
+
+        .subtitle {
+            margin-top: 20px;
+            color: #ff00a0;
+            font-size: 1.5vw;
+            letter-spacing: 0.8em;
+            text-transform: uppercase;
+            opacity: 0.8;
+            text-shadow: 0 0 10px rgba(255, 0, 160, 0.6);
+            font-weight: 400;
+        }
+
+        @keyframes pinkPulse {
+            from {
+                text-shadow: 
+                    0 0 15px #ff00a0, 
+                    0 0 30px #ff00a0, 
+                    0 0 60px #ff00a0;
+                transform: scale(1);
+            }
+            to {
+                text-shadow: 
+                    0 0 30px #ff00a0, 
+                    0 0 80px #ff00a0, 
+                    0 0 150px #ff00a0;
+                transform: scale(1.02);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bgCanvas"></canvas>
+
+    <div class="content-wrapper">
+        <h1 class="main-title">HELLO WORLD</h1>
+        <div class="subtitle">Question is my world</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('bgCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let particles = [];
+        const particleCount = 100;
+
+        let mouse = { x: null, y: null, radius: 150 };
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        window.addEventListener('mouseout', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        window.addEventListener('resize', init);
+
+        function init() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            particles = [];
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 0.5,
+                    vx: (Math.random() - 0.5) * 0.8, // 游移速度X
+                    vy: (Math.random() - 0.5) * 0.8, // 游移速度Y
+                    color: `rgba(255, 0, 160, ${Math.random() * 0.6 + 0.2})`
+                });
+            }
+        }
+
+        function animate() {
+            // 背景殘影效果
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i];
+
+                // 正常游移
+                p.x += p.vx;
+                p.y += p.vy;
+
+                // 邊界反彈
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                // 完美的滑鼠互動：連線 + 柔和排斥 (修正了之前的聚集 Bug)
+                if (mouse.x !== null && mouse.y !== null) {
+                    let dx = mouse.x - p.x;
+                    let dy = mouse.y - p.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < mouse.radius) {
+                        // 畫出感測連線
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(255, 0, 160, ${1 - distance / mouse.radius})`;
+                        ctx.lineWidth = 1;
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(mouse.x, mouse.y);
+                        ctx.stroke();
+
+                        // 柔和排斥力：粒子會輕微躲開滑鼠，避免卡死
+                        let force = (mouse.radius - distance) / mouse.radius;
+                        p.x -= (dx / distance) * force * 2;
+                        p.y -= (dy / distance) * force * 2;
+                    }
+                }
+
+                // 繪製粒子
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+
+                // 粒子彼此間的神經網路連線
+                for (let j = i + 1; j < particles.length; j++) {
+                    let p2 = particles[j];
+                    let dx2 = p.x - p2.x;
+                    let dy2 = p.y - p2.y;
+                    let dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+                    if (dist2 < 100) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(255, 0, 160, ${0.2 - dist2 / 500})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
